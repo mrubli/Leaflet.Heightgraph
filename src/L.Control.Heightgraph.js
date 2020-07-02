@@ -733,18 +733,23 @@ import {
          * Appends a grid to the graph
          */
         _appendGrid() {
-            this._svg.append("g")
-                .attr("class", "grid")
-                .attr("transform", "translate(0," + this._svgHeight + ")")
-                .call(this._make_x_axis()
-                    .tickSize(-this._svgHeight, 0, 0)
-                    .tickFormat(""));
-            this._svg.append("g")
-                .attr("class", "grid")
-                .call(this._make_y_axis()
-                    .tickSize(-this._svgWidth, 0, 0)
-                    .ticks(5)
-                    .tickFormat(""));
+            if (this.options.xTicks) {
+                this._svg.append("g")
+                    .attr("class", "grid")
+                    .attr("transform", "translate(0," + this._svgHeight + ")")
+                    .call(this._make_x_axis()
+                        .tickSize(-this._svgHeight, 0, 0)
+                        .ticks(this.options.xTicks)
+                        .tickFormat(""));
+            }
+            if (this.options.yTicks) {
+                this._svg.append("g")
+                    .attr("class", "grid")
+                    .call(this._make_y_axis()
+                        .tickSize(-this._svgWidth, 0, 0)
+                        .ticks(this.options.yTicks)
+                        .tickFormat(""));
+            }
             this._svg.append('g')
                 .attr("transform", "translate(0," + this._svgHeight + ")")
                 .attr('class', 'x axis')
