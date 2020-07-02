@@ -104,6 +104,7 @@ import {
             if (this._svg !== undefined) {
                 this._svg.selectAll("*")
                     .remove();
+                this._overlappingLabelsRemoved = false;
             }
 
             this._removeMarkedSegmentsOnMap();
@@ -263,6 +264,7 @@ import {
                     .style("display", "block");
                 select(this._closeButton)
                     .style("display", "block");
+                this._removeOverlappingLabels();
             } else {
                 select(this._button)
                     .style("display", "block");
@@ -703,6 +705,102 @@ import {
                 .scale(this._yEnd)
                 .ticks(0);
         },
+        _removeOverlappingLabels() {
+            console.log("[_removeOverlappingLabels] start");
+            if (this._overlappingLabelsRemoved)
+                return; // nothing to do
+
+            const boundsOverlap = function(a, b) {
+                return a.left < b.right
+                    && a.right > b.left
+                    && a.top < b.bottom
+                    && a.bottom > b.top;
+            };
+
+            const containsOverlappingLabels = function(labels) {
+                var overlap = false;
+                var prevBounds = null;
+                labels.each(function() {
+                    if(!overlap && prevBounds != null && boundsOverlap(prevBounds, this.getBoundingClientRect())) {
+                        overlap = true;
+                    }
+                    else {
+                        prevBounds = this.getBoundingClientRect();
+                    }
+                });
+                return overlap;
+            };
+
+            const hideLabel = function(elem) {
+                //select(elem).style("fill", "red");
+                select(elem).style("display", "none");
+            };
+
+            const showLabel = function(elem) {
+                select(elem).style("display", "block");
+            };
+
+            const UseSimpleAlgo = !true;    // simple: 1-2ms, better: 1-4ms
+
+            //const before = new Date();
+            if(UseSimpleAlgo) {
+
+                // Simple algorithm: Iterate over all labels and hide every label that has overlap with the last visible one
+                var prevBounds = null;
+                select(this._container).select("svg").select("g").selectAll('g.axis').selectAll('text').each(function() {
+                    if(prevBounds != null && boundsOverlap(prevBounds, this.getBoundingClientRect())) {
+                        hideLabel(this);
+                        return;
+                    }
+                    prevBounds = this.getBoundingClientRect();
+                });
+
+            }
+            else {
+
+                // Better algorithm:
+                // - If there is no overlap no labels are hidden.
+                // - If there is overlap hide 1 out of 2 labels (i.e. create gaps of size one).
+                // - If there still is overlap hide 2 out of 3 labels (i.e. create gaps of size two).
+                // - ... and so on until only the first label is visible.
+                const xLabels = select(this._container).select("svg").select("g").selectAll('g.x.axis').selectAll('text');
+                const yLabels = select(this._container).select("svg").select("g").selectAll('g.y.axis').selectAll('text');
+                for(const labels of [xLabels, yLabels]) {
+                    const count = Math.trunc((labels.size() - 1) / 2) * 2 + 1;  // round down even label counts to an odd number
+                    for(var gapSize = 0; gapSize < count; gapSize++) {          // size of gaps to create
+                        var toHide = 0;             // number of labels left to hide (0 means gap is complete)
+                        var prevBounds = null;      // bounds of the last visible label
+                        var overlap = false;        // true if overlap has been detected
+                        labels.each(function() {
+                            if(overlap)
+                                return;             // early exit if we already know we have overlap
+                            if(toHide == 0) {
+                                // this label is supposed to be visible (i.e. between gaps), so check for overlap with the previous
+                                if(prevBounds != null && boundsOverlap(prevBounds, this.getBoundingClientRect())) {
+                                    overlap = true; // we have overlap
+                                    return;         // early exit; we'll increase the gap size on the next iteration
+                                }
+                                showLabel(this);    // explicitly display the label in case it was hidden by a previous iteration
+                                prevBounds = this.getBoundingClientRect();
+                                toHide = gapSize;   // start a new gap after this label
+                            }
+                            else {
+                                // this label will be hidden (i.e. we have a gap here)
+                                hideLabel(this);
+                                toHide--;           // one down
+                            }
+                        });
+                        if(!overlap)
+                            break;                  // an iteration without overlap means success
+                    }
+                }
+
+            }
+            //const after = new Date();
+            //console.log("before:", before, "after:", after, after.getTime() - before.getTime());
+            this._overlappingLabelsRemoved = true;
+            console.log("[_removeOverlappingLabels] end");
+        },
         /**
          * Appends a background and adds mouse handlers
          */
@@ -742,6 +840,7 @@ import {
                     .call(this._make_x_axis()
                         .tickSize(-this._svgHeight, 0, 0)
                         .ticks(this.options.xTicks)
+                        //.ticks(Math.pow(2, this.options.xTicks))
                         .tickFormat(""));
             }
             if (this.options.yTicks) {
@@ -750,6 +849,7 @@ import {
                     .call(this._make_y_axis()
                         .tickSize(-this._svgWidth, 0, 0)
                         .ticks(this.options.yTicks)
+                        //.ticks(Math.pow(2, this.options.yTicks))
                         .tickFormat(""));
             }
             this._svg.append('g')
