@@ -689,13 +689,15 @@ import {
                     .tickFormat(d => format(".0f")(d) + " km");
             }
             if(this.options.xTicks !== undefined){
-                this._xAxis.ticks(Math.pow(2, this.options.xTicks));
+                console.log("xAxis.ticks =", this.options.xTicks);
+                this._xAxis.ticks(this.options.xTicks);
             }
             this._yAxis = axisLeft()
                 .scale(this._y)
                 .tickFormat(d => d + " m");
             if(this.options.yTicks !== undefined){
-                this._yAxis.ticks(Math.pow(2, this.options.yTicks));
+                console.log("yAxis.ticks =", this.options.yTicks);
+                this._yAxis.ticks(this.options.yTicks);
             }
             this._yEndAxis = axisRight()
                 .scale(this._yEnd)
